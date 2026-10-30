@@ -23,7 +23,7 @@ public final class HyfeConfig {
 
         def(y, "niveles.auto", true);
         def(y, "niveles.cantidad", 30);
-        def(y, "niveles.xp-base", 50);
+        def(y, "niveles.xp-base", 100);
         def(y, "niveles.anuncio", "§a¡Tu mascota subió al §enivel %nivel%§a!");
         def(y, "niveles.anuncio-tipo", "TITLE");
 
@@ -37,12 +37,19 @@ public final class HyfeConfig {
         def(y, "combate.atacar-jugadores", true);
         def(y, "combate.atacar-mobs", true);
         def(y, "combate.skill-ataque", "");
-        def(y, "combate.xp-por-dano", 1.0);
-        def(y, "combate.xp-kill-mob", 2.0);
-        def(y, "combate.xp-kill-jugador", 10.0);
+        def(y, "combate.xp-por-dano", 0.25);
+        def(y, "combate.xp-kill-mob", 1.0);
+        def(y, "combate.xp-kill-jugador", 5.0);
+        def(y, "combate.velocidad", 1.8);
+        // Animacion de ModelEngine al atacar, por id de modelo (los modelos del pack no traen "attack")
+        def(y, "combate.animaciones.nm_clot_the_creaking", "robot");
+        def(y, "combate.animaciones.nm_escent_the_ender_dragon", "flap");
+        def(y, "combate.animaciones.nm_wrangle_the_warden", "sonic_boom");
+        def(y, "combate.animaciones.nm_wortle_the_wither", "spawn");
 
         def(y, "seguir.atascado-segundos", 3);
         def(y, "seguir.teleport-sin-suelo", true);
+        def(y, "seguir.velocidad", 1.6);
 
         try {
             y.save(file);
@@ -66,6 +73,11 @@ public final class HyfeConfig {
 
     public static double number(final String path) {
         return cfg.getDouble(path);
+    }
+
+    /** Animacion de ataque del modelo, o "" si no tiene. */
+    public static String animacion(final String modelo) {
+        return cfg.getString("combate.animaciones." + modelo, "");
     }
 
     public static String text(final String path) {

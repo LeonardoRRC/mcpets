@@ -101,7 +101,8 @@ public final class HyfeCombate implements Listener {
 
         if (Utils.distance(petEnt.getLocation(), destino) > HyfeConfig.number("combate.alcance")) {
             PathFindingUtils.moveTo(activeMob.getEntity(),
-                    new AbstractLocation(activeMob.getEntity().getWorld(), destino.getX(), destino.getY(), destino.getZ()));
+                    new AbstractLocation(activeMob.getEntity().getWorld(), destino.getX(), destino.getY(), destino.getZ()),
+                    HyfeConfig.number("combate.velocidad"));
             return true;
         }
 
@@ -116,9 +117,26 @@ public final class HyfeCombate implements Listener {
                     // skill inexistente: solo se pierde la animacion
                 }
             }
+            animar(petEnt);
+            petEnt.getWorld().playSound(petEnt.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_ATTACK_STRONG, 0.8f, 1.1f);
             t.damage(dano(pet), petEnt);
         }
         return true;
+    }
+
+    /** Animacion de ataque de ModelEngine (combate.animaciones), si el modelo tiene una configurada. */
+    private static void animar(final Entity petEnt) {
+        try {
+            final com.ticxo.modelengine.api.model.ModeledEntity me =
+                    com.ticxo.modelengine.api.ModelEngineAPI.getModeledEntity(petEnt.getUniqueId());
+            if (me == null) return;
+            me.getModels().forEach((id, modelo) -> {
+                final String anim = HyfeConfig.animacion(id);
+                if (!anim.isEmpty()) modelo.getAnimationHandler().playAnimation(anim, 0.1, 0.1, 1.0, true);
+            });
+        } catch (final Throwable ignored) {
+            // otra version de ModelEngine: se pega sin animacion
+        }
     }
 
     /** Daño del golpe de la mascota segun su nivel. */

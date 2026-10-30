@@ -10,8 +10,8 @@ import java.util.List;
 
 /**
  * Niveles automaticos (fork de HyfeCraft): las mascotas sin "Levels" en su YAML reciben
- * niveles.cantidad niveles. El nivel N pide xp-base * (N-1) * N / 2 de experiencia (50, 150, 300...
- * con xp-base 50) y pega combate.dano-base + (N-1) * combate.dano-por-nivel, guardado como
+ * niveles.cantidad niveles. El nivel N pide xp-base * (N-1) * N / 2 de experiencia (100, 300, 600...
+ * con xp-base 100) y pega combate.dano-base + (N-1) * combate.dano-por-nivel, guardado como
  * DamageModifier sobre el daño base. Una mascota con Levels propios en su YAML no se toca.
  */
 public final class HyfeNiveles {
@@ -44,7 +44,7 @@ public final class HyfeNiveles {
                     GlobalConfig.getInstance().getDefaultRespawnCooldown(),
                     0,
                     0,
-                    "Nivel " + n,
+                    String.valueOf(n),
                     umbral,
                     n == 1 || anuncio.isEmpty() ? null : anuncio.replace("%nivel%", String.valueOf(n)),
                     tipo,
