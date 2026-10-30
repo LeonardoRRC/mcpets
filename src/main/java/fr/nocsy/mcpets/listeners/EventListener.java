@@ -28,6 +28,7 @@ public class EventListener implements Listener {
         listeners.add(new MountWallClipListener());
 
         listeners.add(new LivingPetsListener());
+        listeners.add(new fr.nocsy.mcpets.hyfe.HyfeCombate());
 
         listeners.add(new MythicListener());
 

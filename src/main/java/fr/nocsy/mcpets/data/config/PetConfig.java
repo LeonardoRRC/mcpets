@@ -356,6 +356,11 @@ public class PetConfig extends AbstractConfig {
             levels.add(petLevel);
         }
 
+        // Fork HyfeCraft: sin Levels en el YAML, niveles automaticos (ver HyfeNiveles)
+        if (levels.isEmpty() && fr.nocsy.mcpets.hyfe.HyfeConfig.bool("niveles.auto")) {
+            levels.addAll(fr.nocsy.mcpets.hyfe.HyfeNiveles.generar(pet));
+        }
+
         levels.sort(PetLevel::compareTo);
         pet.setPetLevels(levels);
     }

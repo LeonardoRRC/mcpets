@@ -78,6 +78,7 @@ public class MCPets extends JavaPlugin {
         ItemsListConfig.getInstance().init();
         PetFoodConfig.getInstance().init();
         GlobalConfig.getInstance().init();
+        fr.nocsy.mcpets.hyfe.HyfeConfig.load();
         LanguageConfig.getInstance().init();
         BlacklistConfig.getInstance().init();
         PetConfig.loadPets(AbstractConfig.getPath() + "Pets/", true);

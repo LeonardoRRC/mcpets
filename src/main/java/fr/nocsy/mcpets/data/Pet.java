@@ -992,6 +992,9 @@ public class Pet {
         task = Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(MCPets.getInstance(), new Runnable() {
 
             private int teleportTick = 0;
+            // Fork HyfeCraft: deteccion de mascota atascada
+            private Location ultimaPos = null;
+            private int ciclosQuieta = 0;
 
             @Override
             public void run() {
@@ -1035,6 +1038,34 @@ public class Pet {
 
                 final double distance = Utils.distance(ownerLoc, petLoc);
 
+                // Fork HyfeCraft: si esta peleando, persigue al objetivo en vez de seguir al dueño
+                if (fr.nocsy.mcpets.hyfe.HyfeCombate.tick(getInstance(), p, activeMob)) {
+                    ultimaPos = null;
+                    ciclosQuieta = 0;
+                    if (teleportTick > 0)
+                        teleportTick--;
+                    return;
+                }
+
+                // Fork HyfeCraft: lejos del dueño y sin moverse durante seguir.atascado-segundos -> se
+                // teletransporta (antes solo pasaba a mas de DistanceTeleport bloques y con el dueño en
+                // el suelo, y se quedaba atascada para siempre)
+                if (distance > getInstance().getDistance() && ultimaPos != null
+                        && ultimaPos.getWorld().equals(petLoc.getWorld())
+                        && Utils.distance(ultimaPos, petLoc) < 0.3) {
+                    ciclosQuieta++;
+                } else {
+                    ciclosQuieta = 0;
+                }
+                ultimaPos = petLoc.clone();
+                if (ciclosQuieta >= Math.max(1, fr.nocsy.mcpets.hyfe.HyfeConfig.integer("seguir.atascado-segundos") * 2)
+                        && !p.isFlying() && !p.isGliding() && teleportTick == 0) {
+                    ciclosQuieta = 0;
+                    getInstance().teleportToPlayer(p);
+                    teleportTick = 4;
+                    return;
+                }
+
                 // Following AI System
                 if (distance < getInstance().getComingBackRange()) {
                     // If the pet is too close then it stops
@@ -1050,7 +1081,7 @@ public class Pet {
                     PathFindingUtils.moveTo(activeMob.getEntity(), aloc);
                 } else if (distance > GlobalConfig.getInstance().getDistanceTeleport()
                         && !p.isFlying() && !p.isGliding()
-                        && p.isOnGround()
+                        && (p.isOnGround() || fr.nocsy.mcpets.hyfe.HyfeConfig.bool("seguir.teleport-sin-suelo"))
                         && teleportTick == 0) {
                     // If the pet is really too far, and that the owner is not flying
                     // And that we didn't teleport the pet a few ticks before
