@@ -38,6 +38,7 @@ public final class HyfeCombate implements Listener {
         LivingEntity entidad;
         long hasta;
         long proximoGolpe;
+        long animandoHasta;
     }
 
     private static final Map<Pet, Objetivo> OBJETIVOS = new WeakHashMap<>();
@@ -96,9 +97,14 @@ public final class HyfeCombate implements Listener {
             return false;
         }
 
-        final Location destino = t.getLocation();
-        if (petEnt instanceof Mob mob) mob.lookAt(t);
+        // Mientras dura la animacion del golpe la mascota se queda quieta mirando al objetivo (si se
+        // moviera, la animacion de andar la cortaria).
+        if (ahora < o.animandoHasta) {
+            mirar(petEnt, t);
+            return true;
+        }
 
+        final Location destino = t.getLocation();
         if (Utils.distance(petEnt.getLocation(), destino) > HyfeConfig.number("combate.alcance")) {
             PathFindingUtils.moveTo(activeMob.getEntity(),
                     new AbstractLocation(activeMob.getEntity().getWorld(), destino.getX(), destino.getY(), destino.getZ()),
@@ -107,36 +113,92 @@ public final class HyfeCombate implements Listener {
         }
 
         if (ahora >= o.proximoGolpe) {
-            o.proximoGolpe = ahora + HyfeConfig.integer("combate.cooldown-ticks") * 50L;
-            o.hasta = Math.max(o.hasta, ahora + 3000L);
-            final String skill = HyfeConfig.text("combate.skill-ataque");
-            if (!skill.isEmpty()) {
-                try {
-                    MCPets.getMythicMobs().getAPIHelper().castSkill(petEnt, skill);
-                } catch (final Exception ignored) {
-                    // skill inexistente: solo se pierde la animacion
-                }
-            }
-            animar(petEnt);
-            petEnt.getWorld().playSound(petEnt.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_ATTACK_STRONG, 0.8f, 1.1f);
-            t.damage(dano(pet), petEnt);
+            golpear(pet, petEnt, t, o, ahora);
+        } else {
+            if (petEnt instanceof Mob mob) mob.getPathfinder().stopPathfinding();
+            mirar(petEnt, t);
         }
         return true;
     }
 
-    /** Animacion de ataque de ModelEngine (combate.animaciones), si el modelo tiene una configurada. */
-    private static void animar(final Entity petEnt) {
+    /**
+     * Golpe: se para, se gira hacia el objetivo, reproduce la animacion entera y el daño entra a
+     * mitad de ella. No vuelve a golpear hasta que la animacion termina (o cooldown-ticks, lo que
+     * sea mas largo).
+     */
+    private static void golpear(final Pet pet, final Entity petEnt, final LivingEntity t, final Objetivo o, final long ahora) {
+        if (petEnt instanceof Mob mob) mob.getPathfinder().stopPathfinding();
+        mirar(petEnt, t);
+
+        final String skill = HyfeConfig.text("combate.skill-ataque");
+        if (!skill.isEmpty()) {
+            try {
+                MCPets.getMythicMobs().getAPIHelper().castSkill(petEnt, skill);
+            } catch (final Exception ignored) {
+                // skill inexistente: solo se pierde la animacion
+            }
+        }
+        final long duracion = animar(petEnt);
+        final long cooldown = HyfeConfig.integer("combate.cooldown-ticks") * 50L;
+        o.animandoHasta = ahora + duracion;
+        o.proximoGolpe = ahora + Math.max(cooldown, duracion);
+        o.hasta = Math.max(o.hasta, o.proximoGolpe + 3000L);
+
+        final long ticksImpacto = Math.max(1, Math.min(duracion / 2, 600) / 50);
+        final long fin = o.animandoHasta;
+        new org.bukkit.scheduler.BukkitRunnable() {
+            private long tick = 0;
+
+            @Override
+            public void run() {
+                if (!petEnt.isValid() || !t.isValid() || t.isDead()) {
+                    cancel();
+                    return;
+                }
+                mirar(petEnt, t);
+                if (++tick == ticksImpacto
+                        && Utils.distance(petEnt.getLocation(), t.getLocation()) <= HyfeConfig.number("combate.alcance") + 1.5) {
+                    petEnt.getWorld().playSound(petEnt.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_ATTACK_STRONG, 0.8f, 1.1f);
+                    t.damage(dano(pet), petEnt);
+                }
+                if (tick >= ticksImpacto && System.currentTimeMillis() >= fin) cancel();
+            }
+        }.runTaskTimer(MCPets.getInstance(), 1L, 1L);
+    }
+
+    /** Gira la mascota (cabeza y cuerpo, que es lo que sigue el modelo) hacia el objetivo. */
+    private static void mirar(final Entity petEnt, final LivingEntity t) {
+        final org.bukkit.util.Vector dir = t.getLocation().toVector().subtract(petEnt.getLocation().toVector());
+        if (dir.lengthSquared() < 1.0E-4) return;
+        final float yaw = (float) Math.toDegrees(Math.atan2(-dir.getX(), dir.getZ()));
+        petEnt.setRotation(yaw, 0f);
+        if (petEnt instanceof LivingEntity le) le.setBodyYaw(yaw);
+        if (petEnt instanceof Mob mob) mob.lookAt(t);
+    }
+
+    /**
+     * Animacion de ataque de ModelEngine (combate.animaciones), si el modelo tiene una configurada.
+     * Devuelve cuanto dura en milisegundos (minimo 400).
+     */
+    private static long animar(final Entity petEnt) {
+        long duracion = 400;
         try {
             final com.ticxo.modelengine.api.model.ModeledEntity me =
                     com.ticxo.modelengine.api.ModelEngineAPI.getModeledEntity(petEnt.getUniqueId());
-            if (me == null) return;
-            me.getModels().forEach((id, modelo) -> {
-                final String anim = HyfeConfig.animacion(id);
-                if (!anim.isEmpty()) modelo.getAnimationHandler().playAnimation(anim, 0.1, 0.1, 1.0, true);
-            });
+            if (me == null) return duracion;
+            for (final Map.Entry<String, com.ticxo.modelengine.api.model.ActiveModel> en : me.getModels().entrySet()) {
+                final String anim = HyfeConfig.animacion(en.getKey());
+                if (anim.isEmpty()) continue;
+                final com.ticxo.modelengine.api.model.ActiveModel modelo = en.getValue();
+                modelo.getAnimationHandler().forceStopAnimation("walk");
+                modelo.getAnimationHandler().playAnimation(anim, 0.05, 0.1, 1.0, true);
+                final com.ticxo.modelengine.api.animation.BlueprintAnimation ba = modelo.getBlueprint().getAnimations().get(anim);
+                if (ba != null) duracion = Math.max(duracion, (long) (ba.getLength() * 1000));
+            }
         } catch (final Throwable ignored) {
             // otra version de ModelEngine: se pega sin animacion
         }
+        return duracion;
     }
 
     /** Daño del golpe de la mascota segun su nivel. */

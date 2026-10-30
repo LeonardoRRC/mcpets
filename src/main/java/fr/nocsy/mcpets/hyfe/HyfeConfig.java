@@ -40,7 +40,7 @@ public final class HyfeConfig {
         def(y, "combate.xp-por-dano", 0.25);
         def(y, "combate.xp-kill-mob", 1.0);
         def(y, "combate.xp-kill-jugador", 5.0);
-        def(y, "combate.velocidad", 1.8);
+        def(y, "combate.velocidad", 1.3);
         // Animacion de ModelEngine al atacar, por id de modelo (los modelos del pack no traen "attack")
         def(y, "combate.animaciones.nm_clot_the_creaking", "robot");
         def(y, "combate.animaciones.nm_escent_the_ender_dragon", "flap");
@@ -49,7 +49,7 @@ public final class HyfeConfig {
 
         def(y, "seguir.atascado-segundos", 3);
         def(y, "seguir.teleport-sin-suelo", true);
-        def(y, "seguir.velocidad", 1.6);
+        def(y, "seguir.velocidad", 1.15);
 
         try {
             y.save(file);
